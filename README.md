@@ -12,13 +12,13 @@ An app-first toolkit for **Android Auto**, **offline navigation** and a display 
 ![Experimental](https://img.shields.io/badge/status-experimental-d7ff62?style=for-the-badge&labelColor=101612)
 ![AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-d7ff62?style=for-the-badge&labelColor=101612)
 
-<a href="media/reride-demo.mp4"><img src="media/reride-poster.jpg" width="900" alt="Watch ReRide: an old phone becomes a branded motorcycle head unit"></a>
-
-<sub>▶ Click to watch the 24-second film, with sound.</sub>
-
 [Get started](#-get-started) · [Device profiles](profiles/devices) · [Safety](docs/security.md) · [Contribute](CONTRIBUTING.md)
 
 </div>
+
+## 🎬 Quick look
+
+https://github.com/user-attachments/assets/1af430a0-55d6-4c96-9b1f-54a6c2328931
 
 ## 🏍️ A second ride, not another gadget
 
