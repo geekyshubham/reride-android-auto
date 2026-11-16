@@ -1,0 +1,7 @@
+# Preserve upstream patch context and vendored runtime bytes.
+integrations/open-headunit/managed.patch -whitespace
+promo/brag-output/composition/assets/gsap.min.js -whitespace
+*.mp4 binary
+*.jpg binary
+*.wav binary
+*.ogg binary

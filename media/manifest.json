@@ -1,0 +1,14 @@
+{
+  "video": "reride-demo.mp4",
+  "sha256": "3cd56186ccfdf2177fd477e6b00f25d804cdf8d7a4fa0875bfdddba7b29f8f7c",
+  "bytes": 1420683,
+  "duration_seconds": 24,
+  "fps": 30,
+  "frames": 720,
+  "width": 1920,
+  "height": 1080,
+  "poster": "reride-poster.jpg",
+  "poster_sha256": "9110636d62b2cbcc2db1bb539f9cf315a26db60896892044be7075d5788e33c9",
+  "poster_source_second": 9.7,
+  "poster_baked_frame_zero": true
+}

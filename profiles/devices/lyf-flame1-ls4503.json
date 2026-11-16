@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "id": "lyf-flame1-ls4503",
+  "manufacturer": "LYF",
+  "model": "LS-4503",
+  "platform": "msm8909",
+  "sdk": 22,
+  "abis": ["armeabi-v7a"],
+  "display": {"landscape_width": 854, "landscape_height": 480},
+  "status": "historical-single-device-case-study",
+  "firmware_adapter": null,
+  "flash_enabled": false,
+  "notes": "Read docs/lyf-case-study.md. No serial, partition offsets, images, OEM programmer or signing keys are included. Generic key-kiosk candidate remains unverified on hardware."
+}

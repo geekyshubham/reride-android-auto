@@ -1,0 +1,538 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index bb6b8a6..a05e09a 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -9,7 +9,6 @@ plugins {
+ 
+ android {
+     compileSdk = 36
+-    ndkVersion = "29.0.14206865"
+     namespace = "com.andrerinas.openheadunit"
+ 
+     buildFeatures {
+@@ -17,13 +16,6 @@ android {
+         aidl = true // needed for shizuku
+     }
+ 
+-    externalNativeBuild {
+-        cmake {
+-            path("src/main/cpp/CMakeLists.txt")
+-            version = "3.22.1"
+-        }
+-    }
+-
+     val copyRootAssets = tasks.register<Copy>("copyRootAssets") {
+         from("${project.rootDir}/CHANGELOG.md", "${project.rootDir}/LICENSE")
+         into("${project.layout.buildDirectory.get().asFile}/generated/assets/root")
+@@ -93,14 +85,15 @@ android {
+         // installs, testers) and existing users just get a normal update. Only the display name
+         // changed to Open Headunit. The code package and namespace stay openheadunit, so the
+         // applicationId deliberately differs from the namespace, like com.google.talk for Hangouts.
+-        applicationId = "com.andrerinas.headunitrevived"
+-        minSdk = 16
+-        targetSdk = 36
+-        versionCode = 123
+-        versionName = "4.0.0"
++        applicationId = "org.reride.headunit"
++        minSdk = 22
++        targetSdk = 22
++        versionCode = 100
++        versionName = "4.0.0-reride.1"
+         setProperty("archivesBaseName", "${applicationId}_${versionName}")
+         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+         multiDexEnabled = true
++        ndk { abiFilters += "armeabi-v7a" }
+         vectorDrawables.useSupportLibrary = true
+ 
+         // Store available locales in BuildConfig for runtime access
+@@ -108,11 +101,6 @@ android {
+         buildConfigField("String", "AVAILABLE_LOCALES", "\"${availableLocales.joinToString(",")}\"")
+         buildConfigField("String", "GIT_SHA", "\"$gitDescription\"")
+ 
+-        externalNativeBuild {
+-            cmake {
+-                cppFlags("")
+-            }
+-        }
+     }
+ 
+     flavorDimensions.add("distribution")
+diff --git a/app/proguard-project.txt b/app/proguard-project.txt
+index ea1aac7..f38e964 100644
+--- a/app/proguard-project.txt
++++ b/app/proguard-project.txt
+@@ -55,3 +55,6 @@
+ 
+ # Instantiated by Shizuku in a separate process using its class name and public constructor.
+ -keep class com.andrerinas.openheadunit.connection.wifi.scan.WifiScanUserService { *; }
++
++# Keep the firmware policy namespace stable for signed host recovery/validation.
++-keep class org.reride.headunit.** { *; }
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+index 814fc91..596bea9 100644
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -54,7 +54,7 @@
+         android:required="false" />
+ 
+     <permission
+-        android:name="com.andrerinas.openheadunit.permission.NAVIGATION_UPDATE"
++        android:name="org.reride.headunit.permission.NAVIGATION_UPDATE"
+         android:protectionLevel="signature" />
+ 
+     <uses-permission android:name="android.permission.TURN_SCREEN_ON" />
+@@ -107,8 +107,16 @@
+         android:maxSdkVersion="32"
+         tools:ignore="ProtectedPermissions" />
+ 
++    <uses-permission xmlns:android="http://schemas.android.com/apk/res/android" android:name="android.permission.WRITE_SECURE_SETTINGS" />
++    <uses-permission xmlns:android="http://schemas.android.com/apk/res/android" android:name="android.permission.SET_WALLPAPER" />
++    <uses-permission xmlns:android="http://schemas.android.com/apk/res/android" android:name="android.permission.SET_WALLPAPER_HINTS" />
++    <uses-permission xmlns:android="http://schemas.android.com/apk/res/android" android:name="android.permission.STATUS_BAR" />
++    <uses-permission xmlns:android="http://schemas.android.com/apk/res/android" android:name="android.permission.EXPAND_STATUS_BAR" />
++
++    <uses-permission android:name="android.permission.CHANGE_COMPONENT_ENABLED_STATE"/>
+     <application
+         android:name=".App"
++        android:allowBackup="false"
+         android:hardwareAccelerated="true"
+         android:icon="@mipmap/ic_launcher"
+         android:label="@string/title"
+@@ -138,7 +146,7 @@
+             android:name=".app.UsbAttachedActivity"
+             android:directBootAware="true"
+             android:excludeFromRecents="true"
+-            android:exported="true"
++            android:exported="false"
+             android:launchMode="singleTop"
+             android:noHistory="true"
+             android:taskAffinity=""
+@@ -159,6 +167,7 @@
+             android:exported="true"
+             android:launchMode="singleTask"
+             android:theme="@style/SplashTheme">
++            <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.HOME"/><category android:name="android.intent.category.DEFAULT"/></intent-filter>
+ 
+             <!-- Primary Launcher Filter -->
+             <intent-filter>
+@@ -310,7 +319,7 @@
+              actions are refused unless the user turns on "Allow external configuration". -->
+         <receiver
+             android:name=".automation.AutomationReceiver"
+-            android:exported="true">
++            android:exported="false">
+             <intent-filter>
+                 <action android:name="com.andrerinas.openheadunit.ACTION_CONNECT" />
+                 <action android:name="com.andrerinas.openheadunit.ACTION_DISCONNECT" />
+@@ -450,7 +459,7 @@
+         <activity
+             android:name=".main.AutomationActivity"
+             android:excludeFromRecents="true"
+-            android:exported="true"
++            android:exported="false"
+             android:noHistory="true"
+             android:taskAffinity=""
+             android:theme="@android:style/Theme.Translucent.NoTitleBar">
+@@ -503,5 +512,12 @@
+                 android:name="android.support.FILE_PROVIDER_PATHS"
+                 android:resource="@xml/provider_paths" />
+         </provider>
++
++        <activity xmlns:android="http://schemas.android.com/apk/res/android" android:name="org.reride.headunit.HomeActivity" android:theme="@android:style/Theme.Material.NoActionBar" android:exported="true" android:launchMode="singleTask" android:screenOrientation="landscape" android:excludeFromRecents="true"><intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.HOME" /><category android:name="android.intent.category.DEFAULT" /></intent-filter></activity>
++        <activity xmlns:android="http://schemas.android.com/apk/res/android" android:name="org.reride.headunit.GateActivity" android:theme="@android:style/Theme.Material.NoActionBar" android:exported="false" android:screenOrientation="landscape" android:excludeFromRecents="true" />
++        <service xmlns:android="http://schemas.android.com/apk/res/android" android:name="org.reride.headunit.GuardianService" android:exported="false" />
++        <service xmlns:android="http://schemas.android.com/apk/res/android" android:name="org.reride.headunit.WindowGuard" android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE" android:exported="true"><intent-filter><action android:name="android.accessibilityservice.AccessibilityService" /></intent-filter><meta-data android:name="android.accessibilityservice" android:resource="@xml/reride_accessibility" /></service>
++        <receiver xmlns:android="http://schemas.android.com/apk/res/android" android:name="org.reride.headunit.AdminReceiver" android:permission="android.permission.BIND_DEVICE_ADMIN" android:exported="true"><meta-data android:name="android.app.device_admin" android:resource="@xml/reride_admin" /><intent-filter><action android:name="android.app.action.DEVICE_ADMIN_ENABLED" /></intent-filter></receiver>
++        <receiver xmlns:android="http://schemas.android.com/apk/res/android" android:name="org.reride.headunit.BootReceiver" android:exported="true"><intent-filter><action android:name="android.intent.action.BOOT_COMPLETED" /><action android:name="android.intent.action.ACTION_POWER_CONNECTED" /></intent-filter></receiver>
+     </application>
+ </manifest>
+diff --git a/app/src/main/java/com/andrerinas/openheadunit/App.kt b/app/src/main/java/com/andrerinas/openheadunit/App.kt
+index 6f90f77..9a5df10 100644
+--- a/app/src/main/java/com/andrerinas/openheadunit/App.kt
++++ b/app/src/main/java/com/andrerinas/openheadunit/App.kt
+@@ -46,6 +46,7 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
+     override fun onCreate() {
+         super.onCreate()
+         instance = this
++        org.reride.headunit.NativeUi.initialize(this)
+         registerActivityLifecycleCallbacks(this)
+ 
+         try {
+@@ -193,7 +194,9 @@ class App : Application(), Application.ActivityLifecycleCallbacks {
+         }
+     }
+ 
+-    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
++    override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {
++        if (activity.javaClass.name.endsWith(".AapProjectionActivity")) org.reride.headunit.IdleScreen.ready(activity)
++    }
+     override fun onActivityStarted(activity: Activity) {
+         startedActivityCount++
+         if (startedActivityCount == 1) {
+diff --git a/app/src/main/java/com/andrerinas/openheadunit/aap/AapService.kt b/app/src/main/java/com/andrerinas/openheadunit/aap/AapService.kt
+index 3af63e6..42db817 100644
+--- a/app/src/main/java/com/andrerinas/openheadunit/aap/AapService.kt
++++ b/app/src/main/java/com/andrerinas/openheadunit/aap/AapService.kt
+@@ -3695,6 +3695,7 @@ class AapService : Service() {
+     }
+ 
+     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
++        if (!org.reride.headunit.RadioControls.allowAuto(this)) { stopSelf(); return START_NOT_STICKY }
+         try {
+             startForegroundWithCurrentTypes()
+         } catch (e: Exception) {
+diff --git a/app/src/main/java/com/andrerinas/openheadunit/aap/protocol/messages/ServiceDiscoveryResponse.kt b/app/src/main/java/com/andrerinas/openheadunit/aap/protocol/messages/ServiceDiscoveryResponse.kt
+index c323f38..ee96e59 100644
+--- a/app/src/main/java/com/andrerinas/openheadunit/aap/protocol/messages/ServiceDiscoveryResponse.kt
++++ b/app/src/main/java/com/andrerinas/openheadunit/aap/protocol/messages/ServiceDiscoveryResponse.kt
+@@ -317,6 +317,7 @@ internal class ServiceDiscoveryResponse(context: Context, audioConfig: AudioSess
+             val vehicleType = VehicleTypePolicy.vehicleType(
+                 settings.vehicleType, settings.useHeadUnitMicrophone)
+             val announcedVehicleId = VehicleIdentityPolicy.vehicleId(settings.vehicleId, vehicleType)
++            android.util.Log.i("RERIDE_VEHICLE", "Discovery vehicle_type=" + vehicleType + " model=" + settings.vehicleModel)
+ 
+             return Control.ServiceDiscoveryResponse.newBuilder().apply {
+                 make = settings.vehicleMake
+diff --git a/app/src/main/java/com/andrerinas/openheadunit/app/AutoStartReceiver.kt b/app/src/main/java/com/andrerinas/openheadunit/app/AutoStartReceiver.kt
+index f134f9a..e0c202c 100644
+--- a/app/src/main/java/com/andrerinas/openheadunit/app/AutoStartReceiver.kt
++++ b/app/src/main/java/com/andrerinas/openheadunit/app/AutoStartReceiver.kt
+@@ -15,6 +15,7 @@ import android.os.Build
+ class AutoStartReceiver : BroadcastReceiver() {
+ 
+     override fun onReceive(context: Context, intent: Intent) {
++        if (!org.reride.headunit.RadioControls.allowAuto(context)) return
+         val action = intent.action
+         // Use device-protected storage so the BT MACs are readable during locked boot
+         val targetMacs = Settings.getAutoStartBtMacs(context)
+diff --git a/app/src/main/java/com/andrerinas/openheadunit/app/BaseActivity.kt b/app/src/main/java/com/andrerinas/openheadunit/app/BaseActivity.kt
+index c8a7757..7bb7018 100644
+--- a/app/src/main/java/com/andrerinas/openheadunit/app/BaseActivity.kt
++++ b/app/src/main/java/com/andrerinas/openheadunit/app/BaseActivity.kt
+@@ -83,6 +83,7 @@ open class BaseActivity : AppCompatActivity() {
+ 
+     override fun onPostCreate(savedInstanceState: Bundle?) {
+         super.onPostCreate(savedInstanceState)
++        org.reride.headunit.NativeUi.install(this)
+         applyHudMirroring()
+     }
+ 
+@@ -93,6 +94,8 @@ open class BaseActivity : AppCompatActivity() {
+ 
+     override fun onResume() {
+         super.onResume()
++        org.reride.headunit.NativeUi.enforce(this)
++        org.reride.headunit.IdleScreen.resume(this)
+         val settings = Settings(this)
+         val actualNightMode = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+         if (currentLanguage != settings.appLanguage ||
+@@ -109,6 +112,16 @@ open class BaseActivity : AppCompatActivity() {
+         }
+     }
+ 
++    override fun onPause() {
++        org.reride.headunit.IdleScreen.pause(this)
++        super.onPause()
++    }
++
++    override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
++        if (event.action == android.view.MotionEvent.ACTION_DOWN) org.reride.headunit.IdleScreen.touch(this)
++        return super.dispatchTouchEvent(event)
++    }
++
+     protected fun applyHudMirroring() {
+         val settings = Settings(this)
+         findViewById<View>(android.R.id.content)?.scaleX = if (settings.hudMirroring) -1.0f else 1.0f
+diff --git a/app/src/main/java/com/andrerinas/openheadunit/app/BootCompleteReceiver.kt b/app/src/main/java/com/andrerinas/openheadunit/app/BootCompleteReceiver.kt
+index 4b0dd51..981a795 100644
+--- a/app/src/main/java/com/andrerinas/openheadunit/app/BootCompleteReceiver.kt
++++ b/app/src/main/java/com/andrerinas/openheadunit/app/BootCompleteReceiver.kt
+@@ -14,6 +14,7 @@ import com.andrerinas.openheadunit.main.FloatingButtonManager
+ class BootCompleteReceiver : BroadcastReceiver() {
+ 
+     override fun onReceive(context: Context, intent: Intent) {
++        org.reride.headunit.RadioControls.resetBootMode(context)
+         val action = intent.action
+         if (action !in BOOT_ACTIONS) return
+ 
+diff --git a/app/src/main/java/com/andrerinas/openheadunit/app/WifiAutoStartReceiver.kt b/app/src/main/java/com/andrerinas/openheadunit/app/WifiAutoStartReceiver.kt
+index 59041ef..81271da 100644
+--- a/app/src/main/java/com/andrerinas/openheadunit/app/WifiAutoStartReceiver.kt
++++ b/app/src/main/java/com/andrerinas/openheadunit/app/WifiAutoStartReceiver.kt
+@@ -24,6 +24,7 @@ import android.os.UserManager
+ class WifiAutoStartReceiver : BroadcastReceiver() {
+ 
+     override fun onReceive(context: Context, intent: Intent) {
++        if (!org.reride.headunit.RadioControls.allowAuto(context)) return
+         if (intent.action != WifiManager.NETWORK_STATE_CHANGED_ACTION) return
+ 
+         val networkInfo = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+@@ -40,6 +41,7 @@ class WifiAutoStartReceiver : BroadcastReceiver() {
+ 
+     companion object {
+         fun checkAndStart(context: Context) {
++            if (!org.reride.headunit.RadioControls.allowAuto(context)) return
+             // Read settings from device-protected storage for maximum reliability
+             if (!Settings.isAutoStartOnWifiEnabled(context)) return
+             val targetSsid = Settings.getAutoStartWifiSsid(context).removeSurrounding("\"")
+diff --git a/app/src/main/java/com/andrerinas/openheadunit/main/AppDrawerFragment.kt b/app/src/main/java/com/andrerinas/openheadunit/main/AppDrawerFragment.kt
+index 7e143db..7ce6f6d 100644
+--- a/app/src/main/java/com/andrerinas/openheadunit/main/AppDrawerFragment.kt
++++ b/app/src/main/java/com/andrerinas/openheadunit/main/AppDrawerFragment.kt
+@@ -239,6 +239,7 @@ class AppDrawerFragment : DialogFragment() {
+ 
+     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+         super.onViewCreated(view, savedInstanceState)
++        if (!org.reride.headunit.NativeUi.admin()) { dismissAllowingStateLoss(); return }
+ 
+         val toolbar = view.findViewById<MaterialToolbar>(R.id.toolbar)
+         val rvApps = view.findViewById<RecyclerView>(R.id.rv_apps)
+diff --git a/app/src/main/java/com/andrerinas/openheadunit/main/HomeFragment.kt b/app/src/main/java/com/andrerinas/openheadunit/main/HomeFragment.kt
+index 4a029c4..9e3acbd 100644
+--- a/app/src/main/java/com/andrerinas/openheadunit/main/HomeFragment.kt
++++ b/app/src/main/java/com/andrerinas/openheadunit/main/HomeFragment.kt
+@@ -483,6 +483,7 @@ class HomeFragment : Fragment() {
+         // Cancel, the progress bar and the step come and go with the status, so the lines that fit
+         // change with it, not only with the layout.
+         scheduleCardFit(root)
++        org.reride.headunit.NativeUi.home(root)
+     }
+ 
+     /**
+@@ -694,7 +695,7 @@ class HomeFragment : Fragment() {
+         val ctx = context ?: return
+         val root = view ?: return
+         val appSettings = App.provide(ctx).settings
+-        val isLauncherActive = appSettings.isCarLauncherActive
++        val isLauncherActive = false
+         val shouldShowExit = CarLauncherManager.shouldShowExitButton(
+             isCarLauncherEnabled = appSettings.enableCarLauncher,
+             isDefaultLauncher = CarLauncherManager.isDefaultLauncher(ctx)
+@@ -708,6 +709,7 @@ class HomeFragment : Fragment() {
+         applyHomeLayout(root, appSettings, isLauncherActive)
+         renderWidgets()
+         scheduleCardFit(root)
++        org.reride.headunit.NativeUi.home(root)
+     }
+ 
+     /**
+@@ -889,7 +891,7 @@ class HomeFragment : Fragment() {
+         // With the widgets switch off the stored pages are left as they are, not even pruned.
+         val widgetsShown = appSettings.showHomeWidgets
+         val stored = if (isLauncherActive && widgetsShown) prunePages(root.context, appSettings.homeWidgetPages) else emptyList()
+-        val pages = if (isLauncherActive) {
++        val pages = if (false) {
+             HomePagesPolicy.pages(compactHome, stored.size, widgetRowOnItsOwnPage(appSettings), widgetsShown)
+         } else {
+             HomePagesPolicy.pages(compact = false, widgetPages = 0)
+@@ -1070,31 +1072,7 @@ class HomeFragment : Fragment() {
+      * The long press on an empty spot of a page: adding a page while there is room for one, and
+      * removing a widget page along with its widgets.
+      */
+-    private fun showPageMenu(widgetPage: Int?): Boolean {
+-        val ctx = context ?: return false
+-        val appSettings = App.provide(ctx).settings
+-        if (!appSettings.isCarLauncherActive) return false
+-        val canAdd = HomeWidgets.supported() &&
+-            HomePagesPolicy.canAddPage(
+-                compactHome,
+-                appSettings.homeWidgetPages.size,
+-                widgetRowOnItsOwnPage(appSettings),
+-                widgetsShown = appSettings.showHomeWidgets
+-            )
+-        val actions = mutableListOf<HomeActionDialog.Action>()
+-        if (canAdd) {
+-            actions.add(
+-                HomeActionDialog.Action(
+-                    getString(R.string.home_page_add), getString(R.string.home_page_add_detail),
+-                    R.drawable.ic_home_page_add, destructive = false
+-                ) { addWidgetPage() }
+-            )
+-        }
+-        if (widgetPage != null) actions.add(removePageAction(widgetPage, otherWidgets = pageWidgetCount(widgetPage)))
+-        if (actions.isEmpty()) return false
+-        showActions(getString(R.string.home_pages_title), actions)
+-        return true
+-    }
++    private fun showPageMenu(widgetPage: Int?): Boolean = false
+ 
+     private fun removePageAction(widgetPage: Int, otherWidgets: Int) = HomeActionDialog.Action(
+         getString(R.string.home_page_remove),
+diff --git a/app/src/main/java/com/andrerinas/openheadunit/main/MainActivity.kt b/app/src/main/java/com/andrerinas/openheadunit/main/MainActivity.kt
+index 4483847..f179b52 100644
+--- a/app/src/main/java/com/andrerinas/openheadunit/main/MainActivity.kt
++++ b/app/src/main/java/com/andrerinas/openheadunit/main/MainActivity.kt
+@@ -335,6 +335,7 @@ class MainActivity : BaseActivity() {
+         customStatusText: String? = null,
+         statusTextIsWakeClaim: Boolean = false
+     ) {
++        if (!org.reride.headunit.RadioControls.allowAuto(this)) return
+         // The flag is on the companion and the watchdog on this instance's scope, so an attempt
+         // can reach here with nothing watching it at all: spend it if it is over, re-arm it if not.
+         endAutoConnectIfExpired()
+diff --git a/app/src/main/java/com/andrerinas/openheadunit/main/SettingsActivity.kt b/app/src/main/java/com/andrerinas/openheadunit/main/SettingsActivity.kt
+index 328ad86..dc81757 100644
+--- a/app/src/main/java/com/andrerinas/openheadunit/main/SettingsActivity.kt
++++ b/app/src/main/java/com/andrerinas/openheadunit/main/SettingsActivity.kt
+@@ -19,6 +19,7 @@ import com.andrerinas.openheadunit.utils.Settings
+ import com.andrerinas.openheadunit.utils.SystemUI
+ 
+ class SettingsActivity : BaseActivity() {
++    private var rerideDenied = false
+ 
+     // A system setup activity is part of this visit. onPause/onStop describe window visibility,
+     // not completion: releasing the connection hold there can raise AA over a permission prompt.
+@@ -102,6 +103,12 @@ class SettingsActivity : BaseActivity() {
+         requestedOrientation = Settings(this).screenOrientation.androidOrientation
+         enableEdgeToEdge()
+         super.onCreate(savedInstanceState)
++        if (!org.reride.headunit.NativeUi.admin()) {
++            rerideDenied = true
++            org.reride.headunit.NativeUi.requestAdmin(this)
++            finish()
++            return
++        }
+         ContextCompat.registerReceiver(this, setupExitReceiver, IntentFilter().apply {
+             addAction(Intent.ACTION_CLOSE_SYSTEM_DIALOGS)
+             addAction(Intent.ACTION_SCREEN_OFF)
+@@ -166,6 +173,7 @@ class SettingsActivity : BaseActivity() {
+ 
+     override fun onResume() {
+         super.onResume()
++        if (!org.reride.headunit.NativeUi.admin()) { org.reride.headunit.NativeUi.requestAdmin(this); finish(); return }
+         externalSetupPending = false
+         if (externalSetupOwner?.get() === this) externalSetupOwner = null
+         isForeground = true
+@@ -192,7 +200,7 @@ class SettingsActivity : BaseActivity() {
+     }
+ 
+     override fun onDestroy() {
+-        unregisterReceiver(setupExitReceiver)
++        if (!rerideDenied) unregisterReceiver(setupExitReceiver)
+         // A task removed during external setup must not leave a process-wide pause behind.
+         // A configuration replacement inherits the hold; an older instance cannot release a
+         // newer SettingsActivity's hold when more than one setup entry point was opened.
+diff --git a/app/src/main/res/layout/activity_main.xml b/app/src/main/res/layout/activity_main.xml
+index 38e05fe..acd6d68 100644
+--- a/app/src/main/res/layout/activity_main.xml
++++ b/app/src/main/res/layout/activity_main.xml
+@@ -29,6 +29,7 @@
+          notices still reach the screen under them. -->
+     <LinearLayout
+         android:id="@+id/status_notices"
++        android:visibility="gone"
+         android:layout_width="match_parent"
+         android:layout_height="wrap_content"
+         android:layout_gravity="top"
+diff --git a/app/src/main/res/layout/view_home_primary_card.xml b/app/src/main/res/layout/view_home_primary_card.xml
+index 79a5512..87d7fa9 100644
+--- a/app/src/main/res/layout/view_home_primary_card.xml
++++ b/app/src/main/res/layout/view_home_primary_card.xml
+@@ -72,6 +72,8 @@
+ 
+         <TextView
+             android:id="@+id/home_primary_kicker"
++            android:layout_height="0dp"
++            android:importantForAccessibility="no"
+             style="@style/HomeCardText"
+             android:maxLines="1"
+             android:textAllCaps="true"
+@@ -88,6 +90,8 @@
+ 
+         <TextView
+             android:id="@+id/home_primary_subtitle"
++            android:layout_height="0dp"
++            android:importantForAccessibility="no"
+             style="@style/HomeCardText"
+             android:layout_marginTop="6dp"
+             android:maxLines="2"
+@@ -136,10 +140,7 @@
+ 
+         </LinearLayout>
+ 
+-        <View
+-            android:layout_width="0dp"
+-            android:layout_height="0dp"
+-            android:layout_weight="1" />
++
+ 
+         <LinearLayout
+             android:id="@+id/home_primary_actions"
+diff --git a/app/src/main/res/values-night/colors.xml b/app/src/main/res/values-night/colors.xml
+index f42d50c..55a1e4e 100644
+--- a/app/src/main/res/values-night/colors.xml
++++ b/app/src/main/res/values-night/colors.xml
+@@ -33,8 +33,8 @@
+     <color name="home_tile_pressed">#262C37</color>
+     <color name="home_tile_stroke">#232933</color>
+     <color name="home_slot_stroke">#2F3540</color>
+-    <color name="home_text">#E6E8EB</color>
+-    <color name="home_text_muted">#9AA1AB</color>
++    <color name="home_text">#14100C</color>
++    <color name="home_text_muted">#14100C</color>
+     <color name="home_apps_tile">#1C212A</color>
+     <color name="home_apps_tile_pressed">#262C37</color>
+     <color name="home_apps_icon">#5FC0B5</color>
+diff --git a/app/src/main/res/values/colors.xml b/app/src/main/res/values/colors.xml
+index 80ce9c8..e8594ce 100644
+--- a/app/src/main/res/values/colors.xml
++++ b/app/src/main/res/values/colors.xml
+@@ -82,8 +82,8 @@
+     <color name="home_tile_pressed">#323A47</color>
+     <color name="home_tile_stroke">#00000000</color>
+     <color name="home_slot_stroke">#39414D</color>
+-    <color name="home_text">#FFFFFF</color>
+-    <color name="home_text_muted">#FFFFFF</color>
++    <color name="home_text">#14100C</color>
++    <color name="home_text_muted">#14100C</color>
+     <color name="home_apps_tile">#0F766E</color>
+     <color name="home_apps_tile_pressed">#0B5A54</color>
+     <color name="home_apps_icon">#FFFFFF</color>
+diff --git a/app/src/main/res/values/strings.xml b/app/src/main/res/values/strings.xml
+index d2b56ed..53ea9c2 100644
+--- a/app/src/main/res/values/strings.xml
++++ b/app/src/main/res/values/strings.xml
+@@ -259,7 +259,7 @@
+     <string name="no_apps_found">No applications found</string>
+     <string name="video">Android Auto</string>
+     <string name="self_mode">Self Mode</string>
+-    <string name="title">Open Headunit</string>
++    <string name="title">RERIDE Auto</string>
+     <string name="remove">Remove</string>
+     <string name="usb">USB</string>
+     <string name="wifi">WiFi</string>
+@@ -1491,7 +1491,7 @@
+     <string name="connection_issue_banner_video_link_too_slow">The WiFi link was too slow for video, so the app lowered it to 720p at 30 FPS. Tap to set the resolution yourself. A 5 GHz network also helps.</string>
+     <string name="connection_issue_banner_five_ghz_channel_refused">This unit would not use the 5 GHz channel you chose and picked one some phones cannot see. Tap to switch WiFi Direct to 2.4 GHz, which works everywhere.</string>
+     <string name="connection_issue_banner_headunit_server_deaf">Android Auto\'s head unit server on your phone has stopped answering. On the phone, stop and start it again in Android Auto\'s developer settings.</string>
+-    <string name="connection_issue_banner_stale_endpoint">Your phone is trying an old network address for this unit. If it does not connect, forget this unit in Android Auto on your phone and connect again.</string>
++    <string name="connection_issue_banner_stale_endpoint">Your phone may have saved old connection details. If it will not connect, forget RERIDE Auto in Android Auto and Bluetooth on your phone, then pair again.</string>
+     <string name="connection_issue_banner_hands_free_held">Another device is using this unit\'s hands-free connection, which Android Auto needs. Disconnect that device and this unit will try again.</string>
+     <string name="connection_issue_banner_hands_free_record_refused">This unit\'s Bluetooth refused the hands-free setup Android Auto needs, so wireless may not start. A cable or another wireless mode does not need it.</string>
+     <string name="connection_issue_banner_home_wifi_rejoined">This unit keeps rejoining your home WiFi during Android Auto, which can make the picture stutter, mostly on 2.4 GHz units. Tap to turn off auto-reconnect for that network, or wait until you are out of its range.</string>
+diff --git a/contract/src/main/java/com/andrerinas/openheadunit/contract/HeadUnitIntent.kt b/contract/src/main/java/com/andrerinas/openheadunit/contract/HeadUnitIntent.kt
+index 991223d..94b2869 100644
+--- a/contract/src/main/java/com/andrerinas/openheadunit/contract/HeadUnitIntent.kt
++++ b/contract/src/main/java/com/andrerinas/openheadunit/contract/HeadUnitIntent.kt
+@@ -12,7 +12,7 @@ import android.view.KeyEvent
+  */
+ 
+ object HeadUnit {
+-    const val packageName = "com.andrerinas.headunitrevived"
++    const val packageName = "org.reride.headunit"
+ }
+ 
+ class KeyIntent(event: KeyEvent): Intent(action) {
+diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
+index aaaabb3..8ddd7e8 100644
+--- a/gradle/wrapper/gradle-wrapper.properties
++++ b/gradle/wrapper/gradle-wrapper.properties
+@@ -1,7 +1,7 @@
+ distributionBase=GRADLE_USER_HOME
+ distributionPath=wrapper/dists
+ distributionUrl=https\://services.gradle.org/distributions/gradle-8.14.4-bin.zip
+-networkTimeout=10000
++networkTimeout=120000
+ validateDistributionUrl=true
+ zipStoreBase=GRADLE_USER_HOME
+ zipStorePath=wrapper/dists
