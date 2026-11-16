@@ -24,3 +24,6 @@ promo/brag-output/*.json
 
 promo/brag-output/*.mp4
 promo/brag-output/*.jpg
+
+.thumbnails/
+.waveform-cache/
